@@ -1,0 +1,263 @@
+<!DOCTYPE HTML>
+<!--
+    Massively by HTML5 UP
+    html5up.net | @ajlkn
+    Jekyll integration by somiibo.com
+    Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+--><html>
+    <head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<title>Promise.race: who came back first ?</title>
+<meta name="description" content="">
+
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/icon/favicon-16x16.png">
+<link rel="manifest" href="/assets/icon/manifest.json">
+<link rel="mask-icon" href="/assets/icon/safari-pinned-tab.svg" color="#5bbad5">
+<link rel="shortcut icon" href="/assets/icon/favicon.ico">
+<meta name="msapplication-config" content="/assets/icon/browserconfig.xml">
+<meta name="theme-color" content="#ffffff">
+
+<!-- CSS -->
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+<noscript><link rel="stylesheet" href="/assets/css/noscript.css"></noscript>
+
+    </head>
+    <body class="is-loading">
+
+        <!-- Wrapper -->
+        <div id="wrapper" class="fade-in">
+
+            <!-- Header -->
+            <header id="header">
+                <a href="/" class="logo">Baspar</a>
+            </header>
+
+            <!-- Nav -->
+            <nav id="nav">
+                <ul class="links">
+  <li class=""><a href="/">Home</a></li>
+  <!-- <li class=""><a href="/about/">About me</a></li> -->
+  <li class=""><a href="/blog/">Blog</a></li>
+  <li class=" active "><a href="/miniblog/">Miniblog</a></li>
+</ul>
+
+                <ul class="icons">
+    <li><a href="https://www.linkedin.com/in/bastien-laine-196977109" class="icon fa-linkedin" rel="nofollow"><span class="label">Linkedin</span></a></li>
+    <li><a href="https://github.com/baspar" class="icon fa-github" rel="nofollow"><span class="label">GitHub</span></a></li>
+    <li><a href="https://t.me/baspar" class="icon fa-telegram" rel="nofollow"><span class="label">Telegram</span></a></li>
+</ul>
+
+            </nav>
+
+            <!-- Main -->
+            <div id="main">
+                <section class="post">
+                    <header class="major">
+                        <span class="date">27 Aug 2019</span>
+                        <h1>Promise.race: who came back first ?</h1>
+                        <p>An handy utility to make using Promise.race easy</p>
+                    </header>
+                    
+                    <p></p>
+<p>A few days ago, I was playing with <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race">Promise.race</a>, and I got stuck into one pattern I didn’t like.</p>
+
+<p>I was having a great volume of asynchronous call to execute in a “race” fashion, :</p>
+<div class="language-js highlighter-rouge">
+<pre class="highlight"><code><span class="kr">const</span> <span class="nx">operation1</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="nx">await</span> <span class="nx">something</span><span class="p">()</span> <span class="p">}</span>
+<span class="kr">const</span> <span class="nx">operation2</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="nx">await</span> <span class="nx">something</span><span class="p">()</span> <span class="p">}</span>
+<span class="kr">const</span> <span class="nx">operation3</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="nx">await</span> <span class="nx">somethingElse</span><span class="p">()</span> <span class="p">}</span>
+<span class="kr">const</span> <span class="nx">operationKittyPic</span> <span class="o">=</span> <span class="nx">async</span> <span class="nx">fn</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">await</span> <span class="nx">axios</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">'https://placekitten.com/200/300'</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="kr">const</span> <span class="nx">main</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">race</span><span class="p">([</span>
+        <span class="nx">operation1</span><span class="p">(),</span>
+        <span class="nx">operation2</span><span class="p">(),</span>
+        <span class="nx">operation3</span><span class="p">(),</span>
+        <span class="nx">operationKittyPic</span><span class="p">()</span>
+    <span class="p">])</span>
+<span class="p">}</span>
+
+</code></pre>
+</div>
+
+<p>Sadly, none had any sort of timeout, which I needed as a safety. First step was to craft a <code class="highlighter-rouge">delay</code> function:</p>
+
+<div class="language-js highlighter-rouge">
+<pre class="highlight"><code><span class="c1">// ``timeout(ms)` `is going to reject after `ms` milliseconds,</span>
+<span class="c1">// with a true value</span>
+<span class="kr">const</span> <span class="nx">timeout</span> <span class="o">=</span> <span class="nx">ms</span> <span class="o">=&gt;</span> <span class="k">new</span> <span class="nx">Promise</span><span class="p">((</span><span class="nx">_</span><span class="p">,</span> <span class="nx">reject</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">setTimeout</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="nx">reject</span><span class="p">(</span><span class="kc">true</span><span class="p">),</span> <span class="nx">ms</span><span class="p">))</span>
+
+<span class="kr">const</span> <span class="nx">main</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">await</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">race</span><span class="p">([</span>
+        <span class="nx">timeout</span><span class="p">(</span><span class="mi">1000</span><span class="p">),</span>
+        <span class="nx">operation1</span><span class="p">(),</span>
+        <span class="nx">operation2</span><span class="p">(),</span>
+        <span class="nx">operation3</span><span class="p">(),</span>
+        <span class="nx">operationKittyPic</span><span class="p">()</span>
+    <span class="p">])</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>But I am now facing an issue: in case an operation fails, <strong>there is no way to know which operation fails, and/or if a timeout occurred.</strong></p>
+
+<p>One easy solution would be to align the return of <strong>Promise.race</strong> with <strong>Promise.all</strong>, where it would resolve or reject and array of elements all <code class="highlighter-rouge">undefined</code> but the one that cause the race to end.</p>
+
+<div class="language-js highlighter-rouge">
+<pre class="highlight"><code><span class="kr">const</span> <span class="nx">race</span> <span class="o">=</span> <span class="p">(</span><span class="nx">promises</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">new</span> <span class="nx">Promise</span><span class="p">((</span><span class="nx">resolve</span><span class="p">,</span> <span class="nx">reject</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">promises</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span>
+        <span class="p">(</span><span class="nx">promise</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">promise</span>
+            <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">res</span> <span class="o">=&gt;</span> <span class="nx">resolve</span><span class="p">(</span><span class="nx">res</span><span class="p">))</span>
+            <span class="p">.</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="o">=&gt;</span> <span class="p">{</span>
+                <span class="kd">let</span> <span class="nx">out</span> <span class="o">=</span> <span class="p">[...</span><span class="nb">Array</span><span class="p">(</span><span class="nx">promises</span><span class="p">.</span><span class="nx">length</span><span class="p">)]</span>
+                <span class="nx">out</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="nx">err</span>
+                <span class="nx">reject</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span>
+            <span class="p">})</span>
+    <span class="p">)</span>
+<span class="p">})</span>
+</code></pre>
+</div>
+
+<p>With this <code class="highlighter-rouge">race</code> utility, you can now easily track who came back first:</p>
+<div class="language-js highlighter-rouge">
+<pre class="highlight"><code><span class="kr">const</span> <span class="nx">p</span> <span class="o">=</span> <span class="nx">race</span><span class="p">([</span>
+    <span class="nx">timeout</span><span class="p">(</span><span class="mi">1000</span><span class="p">),</span>
+    <span class="nx">operation1</span><span class="p">(),</span>
+    <span class="nx">operation2</span><span class="p">(),</span>
+    <span class="nx">operation3</span><span class="p">(),</span>
+    <span class="nx">operationKittyPic</span><span class="p">()</span>
+<span class="p">])</span>
+
+<span class="nx">p</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">result</span> <span class="o">=&gt;</span> <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="err">`</span><span class="nx">result</span> <span class="o">=</span> <span class="nx">$</span><span class="p">{</span><span class="nx">result</span><span class="p">}</span><span class="err">`</span><span class="p">))</span>
+<span class="nx">p</span><span class="p">.</span><span class="k">catch</span><span class="p">(([</span><span class="nx">timeout</span><span class="p">,</span> <span class="p">...</span><span class="nx">errors</span><span class="p">])</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">timeout</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Timeout'</span><span class="p">)</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="kr">const</span> <span class="nx">uniqueError</span> <span class="o">=</span> <span class="nx">errors</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="nx">e</span> <span class="o">=&gt;</span> <span class="nx">e</span> <span class="o">!==</span> <span class="kc">undefined</span><span class="p">)</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="err">`</span><span class="nx">Treat</span> <span class="nx">the</span> <span class="na">error</span><span class="p">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">uniqueError</span><span class="p">}</span><span class="err">`</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">})</span>
+</code></pre>
+</div>
+
+                </section>
+
+                <div class="comments-wrapper">
+    <div id="disqus_thread"></div>
+    <script>
+
+        /**
+        *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+         *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+        var disqus_config = function () {
+            this.page.url = 'http://baspar.github.io/';  // Replace PAGE_URL with your page's canonical URL variable
+            this.page.identifier = '/miniposts/promise-race'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+        };
+        (function() { // DON'T EDIT BELOW THIS LINE
+            var d = document, s = d.createElement('script');
+            s.src = 'https://baspar.disqus.com/embed.js';
+            s.setAttribute('data-timestamp', +new Date());
+            (d.head || d.body).appendChild(s);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+</div>
+<!-- /.comments-wrapper -->
+
+
+                <!-- Footer -->
+                <footer>
+                    <ul class="actions">
+                        <li><a href="/blog/" class="button">Our Blog</a></li>
+                    </ul>
+                </footer>
+            </div>
+
+            <!-- Footer -->
+            <footer id="footer">
+  <section>
+    <form method="POST" action="https://formspree.io/me@bastien-laine.io">
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" name="name" id="name">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="text" name="email" id="email">
+      </div>
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea name="message" id="message" rows="3"></textarea>
+      </div>
+      <ul class="actions">
+        <li><input type="submit" value="Send Message"></li>
+      </ul>
+    </form>
+  </section>
+  <section class="split contact">
+    <section class="alt">
+      <h3>Location</h3>
+      <p>Singapore</p>
+    </section>
+    <section>
+      <h3>Phone</h3>
+      <p><a href="tel:(+65)%208748%200663">(+65) 8748 0663</a></p>
+    </section>
+    <section>
+      <h3>Email</h3>
+      <p><a href="mailto:me@bastien-laine.io">me@bastien-laine.io</a></p>
+    </section>
+    <section>
+      <h3>Social</h3>
+      <ul class="icons alt">
+        <li><a href="https://linkedin.com/in/bastien-laine-196977109" class="icon fa-linkedin" rel="nofollow"><span class="label">Linkedin</span></a></li>
+        <li><a href="https://github.com/baspar" class="icon fa-github" rel="nofollow"><span class="label">GitHub</span></a></li>
+        <li><a href="https://t.me/baspar" class="icon fa-telegram" rel="nofollow"><span class="label">Telegram</span></a></li>
+      </ul>
+    </section>
+  </section>
+</footer>
+<!-- Copyright -->
+<div id="copyright">
+  <ul>
+<li>© HTML5 UP</li>
+<li>Design by <a href="https://html5up.net" rel="nofollow">HTML5 UP</a>
+</li>
+<li>Jekyll Integration by <a href="https://soundgrail.com">SoundGrail</a>
+</li>
+</ul>
+</div>
+
+
+        </div>
+
+        <!-- Scripts -->
+        <!-- DYN -->
+<script src="/assets/js/jquery.min.js"></script>
+<script src="/assets/js/jquery.scrollex.min.js"></script>
+<script src="/assets/js/jquery.scrolly.min.js"></script>
+<script src="/assets/js/skel.min.js"></script>
+<script src="/assets/js/util.js"></script>
+<script src="/assets/js/main.js"></script>
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=default"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments)};
+  gtag('js', new Date());
+
+  gtag('config', 'default');
+</script>
+
+
+    </body>
+</html>

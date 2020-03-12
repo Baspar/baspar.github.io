@@ -1,0 +1,232 @@
+<!DOCTYPE HTML>
+<!--
+    Massively by HTML5 UP
+    html5up.net | @ajlkn
+    Jekyll integration by somiibo.com
+    Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+
+<title>Highlight current word on Vim</title>
+<meta name="description" content="">
+
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/icon/favicon-16x16.png">
+<link rel="manifest" href="/assets/icon/manifest.json">
+<link rel="mask-icon" href="/assets/icon/safari-pinned-tab.svg" color="#5bbad5">
+<link rel="shortcut icon" href="/assets/icon/favicon.ico">
+<meta name="msapplication-config" content="/assets/icon/browserconfig.xml">
+<meta name="theme-color" content="#ffffff">
+
+<!-- CSS -->
+<link rel="stylesheet" href="/assets/css/main.css" />
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
+<noscript><link rel="stylesheet" href="/assets/css/noscript.css" /></noscript>
+
+    </head>
+    <body class="is-loading">
+
+        <!-- Wrapper -->
+        <div id="wrapper" class="fade-in">
+
+            <!-- Header -->
+            <header id="header">
+                <a href="/" class="logo">Baspar</a>
+            </header>
+
+            <!-- Nav -->
+            <nav id="nav">
+                <ul class="links">
+  <li class=""><a href="/">Home</a></li>
+  <!-- <li class=""><a href="/about/">About me</a></li> -->
+  <li class=""><a href="/blog/">Blog</a></li>
+  <li class=" active "><a href="/miniblog/">Miniblog</a></li>
+</ul>
+
+                <ul class="icons">
+    <li><a href="https://www.linkedin.com/in/bastien-laine-196977109" class="icon fa-linkedin" rel="nofollow"><span class="label">Linkedin</span></a></li>
+    <li><a href="https://github.com/baspar" class="icon fa-github" rel="nofollow"><span class="label">GitHub</span></a></li>
+    <li><a href="https://t.me/baspar" class="icon fa-telegram" rel="nofollow"><span class="label">Telegram</span></a></li>
+</ul>
+
+            </nav>
+
+            <!-- Main -->
+            <div id="main">
+                <section class="post">
+                    <header class="major">
+                        <span class="date">11 Mar 2020</span>
+                        <h1>Highlight current word on Vim</h1>
+                        <p>Reproduce a VSCode feature in a few lines of Vimscript</p>
+                    </header>
+                    
+                    <p><p>I’m a Vim user, but I sometimes wonder if some features from other editors, like VSCode would suits my workflow.
+Highlighting the current word is one of them.<br />
+I set my objective to reproduce it on Vim without becoming to heavy.</p>
+<center><i>VSCode highlight on <code>pub</code> word</i></center>
+<p><img src="/images/2020-03-11-vim-highlight/vscode.png" alt="test" /></p>
+
+<p>First step is to define the file structure:</p>
+<ul>
+  <li><strong>Autoload</strong> file, where the code resides. Autoload files allow Vim to load the function only when needed, not before.</li>
+  <li><strong>Plugin</strong> file to handle the call to the autoload function.
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>│
+└── .vim
+    ├── plugin
+    │   └── highlight_current_word.vim
+    └── autoload
+        └── highlight_current_word.vim
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<p>The plugin file is the easiest, it needs to have a <strong>autocommand group</strong>, and an <strong>autocommand</strong> to call the highlight function (from <em>autoload</em>) when the <code class="highlighter-rouge">CursorMoved</code> event is dispatched.<br />
+Additionally, we will also create a <strong>highlight group</strong> for the word, defining background and foreground.</p>
+<div class="language-vim highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">" File: .vim/plugin/highlight_current_word.vim</span>
+highlight HighlightCurrentWord guibg<span class="p">=</span><span class="mh">#463626</span> ctermbg<span class="p">=</span><span class="m">94</span>
+
+augroup highlight_current_word
+    <span class="k">au</span><span class="p">!</span>
+    <span class="k">au</span> <span class="nb">CursorMoved</span> * <span class="k">call</span> highlight_current_word#fn<span class="p">()</span>
+augroup END
+</code></pre></div></div>
+
+<p>For the main function, the idea is to leverage on <code class="highlighter-rouge">matchadd()</code> and <code class="highlighter-rouge">matchdelete()</code>.<br />
+<code class="highlighter-rouge">matchadd()</code> assign a highlight group according to a given regular expression. An <strong>id</strong> can be provided to identify and cancel the assignment with <code class="highlighter-rouge">matchdelete()</code></p>
+
+<p>The complete logic will be the following:</p>
+<ol>
+  <li>Select a random ID</li>
+  <li>Match delete past highlight group matching the ID</li>
+  <li>Find the word under the cursor</li>
+  <li>Assign the highlight group to the current word, with the same random ID</li>
+</ol>
+
+<div class="language-vim highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">" File: .vim/autoload/highlight_current_word.vim</span>
+<span class="k">function</span><span class="p">!</span> highlight_current_word#fn<span class="p">()</span>
+  <span class="k">let</span> exclude_ft <span class="p">=</span> <span class="p">[</span><span class="s2">"nerdtree"</span><span class="p">,</span> <span class="s2">"fugitive"</span><span class="p">,</span> <span class="s2">"fzf"</span><span class="p">]</span>
+    <span class="k">if</span> index<span class="p">(</span>exclude_ft<span class="p">,</span> &amp;<span class="k">filetype</span><span class="p">)</span> <span class="p">==</span> <span class="m">-1</span>
+        <span class="k">try</span>
+            <span class="k">call</span> matchdelete<span class="p">(</span><span class="m">481516</span><span class="p">)</span>
+        <span class="k">catch</span>
+        <span class="k">endtry</span>
+        <span class="k">let</span> current_word <span class="p">=</span> escape<span class="p">(</span>expand<span class="p">(</span><span class="s2">"&lt;cword&gt;"</span><span class="p">),</span> <span class="s2">"\\/[]*~"</span><span class="p">)</span>
+        <span class="k">call</span> matchadd<span class="p">(</span><span class="s2">"HighlightCurrentWord"</span><span class="p">,</span> <span class="s2">"\\&lt;"</span> <span class="p">.</span> current_word <span class="p">.</span><span class="s2">"\\&gt;"</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">481516</span><span class="p">)</span>
+    <span class="k">endif</span>
+<span class="k">endfunction</span>
+</code></pre></div></div>
+
+<p>Additionally, it is possible to check that the <strong>filetype</strong> of the current buffer is not part of a blacklist, to avoid unnecessary highlights.<br />
+Also, for <code class="highlighter-rouge">current_word</code>, we are using <code class="highlighter-rouge">escape()</code> in order to prevent special characters to be matched with <code class="highlighter-rouge">matchadd()</code></p>
+
+<p>Result is the following:</p>
+<center><i>Vim highlight on <code>pub</code> word</i></center>
+<p><img src="/images/2020-03-11-vim-highlight/vim.png" alt="test" /></p>
+
+<p>You can find the source of this files on my <a href="https://github.com/Baspar/dotfiles/tree/master/vim/.vim">dotfiles on Github</a></p>
+</p>
+                </section>
+
+                <div class="comments-wrapper">
+    <div id="disqus_thread"></div>
+    <script>
+
+        /**
+        *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+         *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+        var disqus_config = function () {
+            this.page.url = 'http://baspar.github.io/';  // Replace PAGE_URL with your page's canonical URL variable
+            this.page.identifier = '/miniposts/vim-highlight/'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+        };
+        (function() { // DON'T EDIT BELOW THIS LINE
+            var d = document, s = d.createElement('script');
+            s.src = 'https://baspar.disqus.com/embed.js';
+            s.setAttribute('data-timestamp', +new Date());
+            (d.head || d.body).appendChild(s);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div><!-- /.comments-wrapper -->
+
+
+                <!-- Footer -->
+                <footer>
+                    <ul class="actions">
+                        <li><a href="/blog/" class="button">Our Blog</a></li>
+                    </ul>
+                </footer>
+            </div>
+
+            <!-- Footer -->
+            <footer id="footer">
+  <section>
+    <form method="POST" action="https://formspree.io/me@bastien-laine.io">
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" name="name" id="name" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="text" name="email" id="email" />
+      </div>
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea name="message" id="message" rows="3"></textarea>
+      </div>
+      <ul class="actions">
+        <li><input type="submit" value="Send Message" /></li>
+      </ul>
+    </form>
+  </section>
+  <section class="split contact">
+    <section class="alt">
+      <h3>Location</h3>
+      <p>Singapore</p>
+    </section>
+    <section>
+      <h3>Email</h3>
+      <p><a href="mailto:me@bastien-laine.io">me@bastien-laine.io</a></p>
+    </section>
+    <section>
+      <h3>Social</h3>
+      <ul class="icons alt">
+        <li><a href="https://linkedin.com/in/bastien-laine-196977109" class="icon fa-linkedin" rel="nofollow"><span class="label">Linkedin</span></a></li>
+        <li><a href="https://github.com/baspar" class="icon fa-github" rel="nofollow"><span class="label">GitHub</span></a></li>
+        <li><a href="https://t.me/baspar" class="icon fa-telegram" rel="nofollow"><span class="label">Telegram</span></a></li>
+      </ul>
+    </section>
+  </section>
+</footer>
+<!-- Copyright -->
+<div id="copyright">
+  <ul><li>&copy; HTML5 UP</li><li>Design by <a href="https://html5up.net" rel="nofollow">HTML5 UP</a></li><li>Jekyll Integration by <a href="https://soundgrail.com">SoundGrail</a></li></ul>
+</div>
+
+
+        </div>
+
+        <!-- Scripts -->
+        <!-- DYN -->
+<script src="/assets/js/jquery.min.js"></script>
+<script src="/assets/js/jquery.scrollex.min.js"></script>
+<script src="/assets/js/jquery.scrolly.min.js"></script>
+<script src="/assets/js/skel.min.js"></script>
+<script src="/assets/js/util.js"></script>
+<script src="/assets/js/main.js"></script>
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=default"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments)};
+  gtag('js', new Date());
+
+  gtag('config', 'default');
+</script>
+
+
+    </body>
+</html>

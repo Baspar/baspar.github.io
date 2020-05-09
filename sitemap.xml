@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
-<loc>/miniposts/vim-highlight/</loc>
+<loc>http://localhost:4000/miniposts/vim-highlight/</loc>
 <lastmod>2018-04-26T00:00:00+08:00</lastmod>
 </url>
 <url>
-<loc>/miniposts/promise-race/</loc>
+<loc>http://localhost:4000/miniposts/promise-race/</loc>
 <lastmod>2019-08-27T00:00:00+08:00</lastmod>
 </url>
 <url>
-<loc>/miniposts/vim-highlight/</loc>
+<loc>http://localhost:4000/miniposts/vim-highlight/</loc>
 <lastmod>2020-03-11T00:00:00+08:00</lastmod>
 </url>
 <url>
-<loc>/posts/telegram/</loc>
-<lastmod>2018-04-26T00:00:00+08:00</lastmod>
+<loc>http://localhost:4000/resume/</loc>
 </url>
 <url>
-<loc>/</loc>
+<loc>http://localhost:4000/</loc>
 </url>
 <url>
-<loc>/blog/</loc>
+<loc>http://localhost:4000/blog/</loc>
 </url>
 <url>
-<loc>/miniblog/</loc>
+<loc>http://localhost:4000/miniblog/</loc>
 </url>
 </urlset>
